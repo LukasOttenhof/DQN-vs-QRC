@@ -1,4 +1,5 @@
 starting job
 starting python
-No seed specified, using seed: 3257613023
-Saving to: data/qrc_changed_sweep_results
+No seed specified, using seed: 3574134118
+Saving to: data/qrc_sweep_results
+slurmstepd: error: *** JOB 14347030 ON fc11014 CANCELLED AT 2025-12-06T15:17:39 DUE TO TIME LIMIT ***
