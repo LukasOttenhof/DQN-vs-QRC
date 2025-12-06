@@ -1,0 +1,45 @@
+{
+  "agent": "dqn",
+  "count": 1,
+  "replicates": 1,
+  "replicates_per_config": {
+    "cfg_batch_size=128_buffer_size=50000_epsilon_decay=0.99999_epsilon_min=0.05_epsilon_start=0.5_gamma=0.95_learning_rate=0.002839603544236748_target_update_freq=5": 1
+  },
+  "mean_reward_per_config": {
+    "cfg_batch_size=128_buffer_size=50000_epsilon_decay=0.99999_epsilon_min=0.05_epsilon_start=0.5_gamma=0.95_learning_rate=0.002839603544236748_target_update_freq=5": -1.0
+  },
+  "best_config_id": "cfg_batch_size=128_buffer_size=50000_epsilon_decay=0.99999_epsilon_min=0.05_epsilon_start=0.5_gamma=0.95_learning_rate=0.002839603544236748_target_update_freq=5",
+  "best_mean_reward": -1.0,
+  "best_hyperparameters": {
+    "learning_rate": 0.002839603544236748,
+    "epsilon_start": 0.5,
+    "epsilon_decay": 0.99999,
+    "epsilon_min": 0.05,
+    "batch_size": 128,
+    "buffer_size": 50000,
+    "gamma": 0.95,
+    "target_update_freq": 5
+  },
+  "results": [
+    {
+      "config": {
+        "num_episodes": 1,
+        "max_steps_per_episode": 1,
+        "seed": 0,
+        "learning_rate": 0.002839603544236748,
+        "epsilon_start": 0.5,
+        "epsilon_decay": 0.99999,
+        "epsilon_min": 0.05,
+        "batch_size": 128,
+        "buffer_size": 50000,
+        "gamma": 0.95,
+        "target_update_freq": 5,
+        "config_id": "cfg_batch_size=128_buffer_size=50000_epsilon_decay=0.99999_epsilon_min=0.05_epsilon_start=0.5_gamma=0.95_learning_rate=0.002839603544236748_target_update_freq=5",
+        "rep_index": 0
+      },
+      "mean_reward": -1.0,
+      "std_reward": 0.0
+    }
+  ],
+  "elapsed_time": 1.2092981338500977
+}

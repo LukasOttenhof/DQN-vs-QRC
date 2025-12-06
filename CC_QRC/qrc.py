@@ -505,7 +505,7 @@ def run_qrc_experiment():
     )
     
     
-    experiment_qrc_general.run()
+    # experiment_qrc_general.run()
     # experiment_qrc_epsilon.run()
     # experiment_qrc_target_update_freq.run()
     # experiment_dqn_epsilon.run()
