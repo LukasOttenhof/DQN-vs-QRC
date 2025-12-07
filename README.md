@@ -20,3 +20,8 @@ Hyperparameter Sweep Analysis
 python3 ./CC_Sweep/recalc_summary.py --dir ./data/dqn_sweep_results/
 python3 ./CC_Sweep/recalc_summary.py --dir ./data/qrc_sweep_results/
 ```
+
+QRC Compute Canada Parallel Run
+```bash
+sbatch ./CC_QRC/run.sh
+```
