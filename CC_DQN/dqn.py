@@ -193,4 +193,5 @@ def run_dqn_experiment():
             )
         
 if __name__ == "__main__":
-    run_dqn_experiment()
+    # run_dqn_experiment()
+    pass

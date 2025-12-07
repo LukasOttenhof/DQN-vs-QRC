@@ -6,3 +6,5 @@ venv/
 *.pyc
 __pycache__/
 .venv/
+CC_QRC/qrc_mac_parallel.py
+CC_QRC/qrc_mac_sequential.py

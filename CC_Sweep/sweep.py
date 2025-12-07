@@ -153,6 +153,7 @@ def run_single_qrc(config, save_dir):
             if config["target_update_freq"] is not None and episode % config["target_update_freq"] == 0:
                 agent.update_target()
             episode_rewards.append(total_reward)
+            print("seed: ", config["seed"], "Episode:", episode, "Reward:", total_reward)
             pbar.update(1)
         
     result = {
@@ -223,9 +224,13 @@ def main():
         "target_update_freq": [None, 5, 10, 20],
         "beta": (0.9, 1.0)
     }
+
+    print("Hyperparameter space defined.")
     
     space = dqn_space if args.agent == "dqn" else qrc_space
+    print(f"Using agent: {args.agent}")
     run_function = run_single_dqn if args.agent == "dqn" else run_single_qrc
+
     
     def make_config(i):
         # golden ratio xor

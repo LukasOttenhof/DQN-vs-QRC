@@ -1,0 +1,5 @@
+starting job
+starting python
+No seed specified, using seed: 1541929144
+Saving to: data/qrc_sweep_results
+slurmstepd: error: *** JOB 14313039 ON fc10910 CANCELLED AT 2025-12-06T02:23:24 ***

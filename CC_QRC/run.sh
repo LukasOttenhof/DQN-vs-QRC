@@ -1,12 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=train-dqn-epsilon
+#SBATCH --job-name=qrc-hps
 #SBATCH --account=def-cepp
 #SBATCH --gres=gpu:nvidia_h100_80gb_hbm3_1g.10gb:1
 #SBATCH --cpus-per-task=12
-#SBATCH --time=18:00:00
-#SBATCH --output=output.log
+#SBATCH --time=00:30:00
+#SBATCH --array=0-250
+#SBATCH --output=logs/qrc_hps/output_%A_%a.log
 #SBATCH --mail-user=rany@ualberta.ca
-#SBATCH --mail-type=END
+#SBATCH --mail-type=BEGIN,END
 
 echo "starting job"
 
@@ -15,6 +16,7 @@ nvidia-smi
 module load python/3.11.5
 module load cuda/12.6
 source cc/bin/activate
-python CC_QRC/qrc.py
 
-echo "finished"
+echo "Running seed ${SLURM_ARRAY_TASK_ID}"
+python CC_QRC/qrc.py ${SLURM_ARRAY_TASK_ID}
+echo "Finished seed ${SLURM_ARRAY_TASK_ID}"

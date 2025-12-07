@@ -1,0 +1,5 @@
+starting job
+starting python
+No seed specified, using seed: 102400116
+Saving to: data/dqn_sweep_results
+slurmstepd: error: *** JOB 14313040 ON fc10912 CANCELLED AT 2025-12-06T13:53:56 DUE TO TIME LIMIT ***
