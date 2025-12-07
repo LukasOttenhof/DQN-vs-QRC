@@ -180,20 +180,20 @@ def run(seed):
     agent = QRCAgent(
         state_dim=env.observation_space.shape[0],
         action_dim=env.action_space.n,
-        lr=0.0014,
-        epsilon=1,
-        epsilon_decay=0.9999,
-        epsilon_min=0.05,
+        lr=0.002261,
+        epsilon=1.0,
+        epsilon_decay=0.99997,
+        epsilon_min=0.01,
         batch_size=256,
-        buffer_size=100000,
+        buffer_size=50000,
         gamma=0.95,
-        beta=0.94
+        beta=0.951
     )
 
     episode_rewards = []
     episodes = 1000
     max_steps_per_episode = 500
-    target_update_freq = 10
+    target_update_freq = 5
 
     for episode in range(episodes):
         state = env.reset()
@@ -215,8 +215,8 @@ def run(seed):
         print(f"Seed {seed} | Episode {episode} | Reward {total_reward:.2f} | Epsilon {agent.epsilon:.4f}")
 
     # save individual seed result
-    os.makedirs("results_hps", exist_ok=True)
-    np.savetxt(f"results_hps/qrc_seed_{seed}.txt", np.array(episode_rewards))
+    os.makedirs("results_hps_7pm", exist_ok=True)
+    np.savetxt(f"results_hps_7pm/qrc_seed_{seed}.txt", np.array(episode_rewards))
     # print(f"[Seed = {seed}] saved to results/qrc_seed_{seed}.txt")
 
 
