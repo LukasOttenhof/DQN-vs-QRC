@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=00:30:00
 #SBATCH --array=0-250
-#SBATCH --output=logs/dqn_hps_7pm/output_%A_%a.log
+#SBATCH --output=logs/dqn_hps_9pm/output_%A_%a.log
 #SBATCH --mail-user=rany@ualberta.ca
 #SBATCH --mail-type=BEGIN,END
 
