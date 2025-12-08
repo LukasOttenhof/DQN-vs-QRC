@@ -379,8 +379,8 @@ def run(seed):
         print(f"Seed {seed} | Episode {episode} | Reward {total_reward:.2f} | Epsilon {agent.epsilon:.4f}")
 
     # save individual seed result
-    os.makedirs("result_qrc", exist_ok=True)
-    np.savetxt(f"result_qrc/qrc_seed_{seed}.txt", np.array(episode_rewards))
+    os.makedirs("result_no_tnu", exist_ok=True)
+    np.savetxt(f"result_no_tnu/qrc_seed_{seed}.txt", np.array(episode_rewards))
     # print(f"[Seed = {seed}] saved to results/qrc_seed_{seed}.txt")
 
 
