@@ -166,8 +166,8 @@ class QRCAgent:
 
     # Target network update (hard update)
     def update_target(self):
-        # self.target_net.load_state_dict(self.q_net.state_dict())
-        pass
+        self.target_net.load_state_dict(self.q_net.state_dict())
+        # pass
 
 class QRCAgent_NoTNU:
     def __init__(
@@ -387,4 +387,4 @@ def run(seed):
 if __name__ == "__main__":
     import sys
     seed = int(sys.argv[1])
-    run(seed)
+    run_no_target_net(seed)
