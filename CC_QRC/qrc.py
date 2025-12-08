@@ -331,7 +331,7 @@ def run_no_target_net(seed):
     # save individual seed result
     os.makedirs("result_no_tnu", exist_ok=True)
     np.savetxt(f"result_no_tnu/qrc_seed_{seed}.txt", np.array(episode_rewards))
-    # print(f"[Seed = {seed}] saved to results/qrc_seed_{seed}.txt")
+    print(f"[Seed = {seed}] saved to result_no_tnu/qrc_seed_{seed}.txt")
 
 def run(seed):
     set_global_seed(seed)
