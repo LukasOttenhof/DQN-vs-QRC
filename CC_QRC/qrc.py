@@ -44,7 +44,8 @@ class QRCAgent:
         buffer_size=50000,
         batch_size=64,
         beta=1,     # weight decay for h-net (small default)
-        device=None
+        device=None,
+        h_lr=0.01
     ):
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -55,6 +56,7 @@ class QRCAgent:
         self.epsilon_min = epsilon_min
         self.batch_size = batch_size
         self.beta = beta
+        self.h_lr = h_lr
 
         # Replay memory
         self.memory = deque(maxlen=buffer_size)
@@ -72,7 +74,7 @@ class QRCAgent:
 
         # Optimizers
         self.q_optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
-        self.h_optimizer = optim.Adam(self.h_net.parameters(), lr=self.lr, weight_decay=self.beta)
+        self.h_optimizer = optim.Adam(self.h_net.parameters(), lr=self.h_lr, weight_decay=self.beta)
 
         self.steps = 0
 
@@ -167,7 +169,6 @@ class QRCAgent:
     # Target network update (hard update)
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
-        # pass
 
 class QRCAgent_NoTNU:
     def __init__(
@@ -351,7 +352,8 @@ def run(seed):
         batch_size=256,
         buffer_size=50000,
         gamma=0.95,
-        beta=0.951
+        beta=0.951,
+        h_lr=0.1
     )
 
     episode_rewards = []
@@ -379,12 +381,13 @@ def run(seed):
         print(f"Seed {seed} | Episode {episode} | Reward {total_reward:.2f} | Epsilon {agent.epsilon:.4f}")
 
     # save individual seed result
-    os.makedirs("result_no_tnu", exist_ok=True)
-    np.savetxt(f"result_no_tnu/qrc_seed_{seed}.txt", np.array(episode_rewards))
+    os.makedirs("result_h_lr_01", exist_ok=True)
+    np.savetxt(f"result_h_lr_01/qrc_seed_{seed}.txt", np.array(episode_rewards))
     # print(f"[Seed = {seed}] saved to results/qrc_seed_{seed}.txt")
 
 
 if __name__ == "__main__":
     import sys
     seed = int(sys.argv[1])
-    run_no_target_net(seed)
+    # run_no_target_net(seed)
+    run(seed)

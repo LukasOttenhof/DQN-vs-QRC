@@ -18,7 +18,7 @@ if PROJECT_ROOT not in sys.path:
 from matplotlib.widgets import EllipseSelector
 
 from CC_DQN.dqn import DQNAgent, set_global_seed as set_seed_dqn
-from CC_QRC.qrc import QRCAgent, set_global_seed as set_seed_qrc
+from CC_QRC.qrc_agent import QRCAgent, set_global_seed as set_seed_qrc
 from tbu_discrete import TruckBackerEnv_D
 
 def sample_config(base, space, rng):
@@ -39,6 +39,7 @@ def sample_config(base, space, rng):
     config["buffer_size"] = pick(space["buffer_size"])
     config["gamma"] = pick(space["gamma"])
     config["target_update_freq"] = pick(space["target_update_freq"])
+    config["h_lr"] = pick(space["h_lr"])
     
     if "beta" in space:
         config["beta"] = pick(space["beta"])
@@ -131,7 +132,8 @@ def run_single_qrc(config, save_dir):
         batch_size=config["batch_size"],
         buffer_size=config["buffer_size"],
         gamma=config["gamma"],
-        beta=config["beta"]
+        beta=config["beta"],
+        h_lr=config["h_lr"]
     )
     
     episode_rewards = []
@@ -214,15 +216,16 @@ def main():
     }
     
     qrc_space = {
-        "learning_rate": (1e-4, 5e-3),
-        "epsilon_start": [0.3, 0.5, 0.8, 1.0],
-        "epsilon_min": [0.01, 0.05, 0.1],
-        "epsilon_decay": [0.99990, 0.99997, 0.99999],
-        "batch_size": [64, 128, 256],
-        "buffer_size": [50000, 100000],
+        "learning_rate": [0.002261],
+        "epsilon_start": [1.0],
+        "epsilon_min": [0.01],
+        "epsilon_decay": [0.99997],
+        "batch_size": [256],
+        "buffer_size": [50000],
         "gamma": [0.95, 0.99],
         "target_update_freq": [None, 5, 10, 20],
-        "beta": (0.9, 1.0)
+        "beta": [0.95],
+        "h_lr": [0.001, 0.01, 0.1, 1.0]
     }
 
     print("Hyperparameter space defined.")
@@ -253,6 +256,8 @@ def main():
         
         if "beta" in config:
             id_fields["beta"] = config["beta"]
+        if "h_lr" in config:
+            id_fields["h_lr"] = config["h_lr"]
 
         config["config_id"] = "cfg_" + "_".join(f"{k}={id_fields[k]}" for k in sorted(id_fields.keys()))
         
@@ -298,7 +303,7 @@ def main():
         summary_by_config.setdefault(cid, []).append(r["mean_reward"])
         rep_config.setdefault(cid, {k: v for k, v in cfg.items()
                                     if k in ("learning_rate","epsilon_start","epsilon_decay","epsilon_min",
-                                             "batch_size","buffer_size","gamma","target_update_freq","beta")})
+                                             "batch_size","buffer_size","gamma","target_update_freq","beta","h_lr")})
 
     mean_reward_per_config = {cid: float(np.mean(v)) for cid, v in summary_by_config.items()}
     best_cid = max(mean_reward_per_config, key=mean_reward_per_config.get) if mean_reward_per_config else None
