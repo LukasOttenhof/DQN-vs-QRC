@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=qrc-no-tnu
+#SBATCH --job-name=qrc-h-lr
 #SBATCH --account=def-cepp
 #SBATCH --gres=gpu:nvidia_h100_80gb_hbm3_1g.10gb:1
 #SBATCH --cpus-per-task=4
