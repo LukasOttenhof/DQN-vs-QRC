@@ -334,6 +334,165 @@ def run_no_target_net(seed):
     np.savetxt(f"result_no_tnu/qrc_seed_{seed}.txt", np.array(episode_rewards))
     print(f"[Seed = {seed}] saved to result_no_tnu/qrc_seed_{seed}.txt")
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import random
+from collections import deque
+
+
+# --------------------------
+# Shared backbone + 2 heads
+# --------------------------
+class QRCNet(nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super().__init__()
+
+        # shared feature extractor
+        self.backbone = nn.Sequential(
+            nn.Linear(state_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+        )
+
+        # Q-value head
+        self.q_head = nn.Linear(128, action_dim)
+
+        # h-value head
+        self.h_head = nn.Linear(128, action_dim)
+
+    def forward(self, x):
+        z = self.backbone(x)
+        q = self.q_head(z)
+        h = self.h_head(z)
+        return q, h
+
+
+class QRCAgent_OneNetwork:
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        lr=1e-3,
+        gamma=0.99,
+        epsilon=0.5,
+        epsilon_decay=0.995,
+        epsilon_min=0.01,
+        buffer_size=50000,
+        batch_size=64,
+        beta=1e-4,
+        h_lr=1e-3,
+        device=None,
+    ):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_min = epsilon_min
+        self.batch_size = batch_size
+        self.beta = beta
+        self.h_lr = h_lr
+
+        self.memory = deque(maxlen=buffer_size)
+
+        self.device = device or (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
+
+        # shared network with two heads
+        self.net = QRCNet(state_dim, action_dim).to(self.device)
+        self.target_net = QRCNet(state_dim, action_dim).to(self.device)
+        self.target_net.load_state_dict(self.net.state_dict())
+
+        # separate optimizers:
+        # Q-head: no weight decay
+        self.q_optimizer = optim.Adam(
+            list(self.net.backbone.parameters()) +
+            list(self.net.q_head.parameters()),
+            lr=lr
+        )
+
+        # H-head: with weight decay
+        self.h_optimizer = optim.Adam(
+            self.net.h_head.parameters(),
+            lr=h_lr,
+            weight_decay=beta
+        )
+
+    # --------------------------
+    # epsilon-greedy policy
+    # --------------------------
+    def agent_policy(self, state):
+        if np.random.rand() < self.epsilon:
+            return np.random.randint(self.action_dim)
+
+        state_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            q, _ = self.net(state_t)
+        return int(q.argmax(dim=1).item())
+
+    def remember(self, s, a, r, s2, done):
+        self.memory.append((s, a, r, s2, done))
+
+    # --------------------------
+    # training step
+    # --------------------------
+    def train_with_mem(self):
+        if len(self.memory) < self.batch_size:
+            return
+
+        batch = random.sample(self.memory, self.batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = torch.tensor(np.stack(states), dtype=torch.float32).to(self.device)
+        next_states = torch.tensor(np.stack(next_states), dtype=torch.float32).to(self.device)
+        actions = torch.tensor(actions, dtype=torch.long).unsqueeze(1).to(self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).unsqueeze(1).to(self.device)
+        dones = torch.tensor(dones, dtype=torch.float32).unsqueeze(1).to(self.device)
+
+        # forward pass
+        q_values, h_values = self.net(states)
+        q_sa = q_values.gather(1, actions)
+        h_sa = h_values.gather(1, actions)
+
+        with torch.no_grad():
+            next_q_values, _ = self.target_net(next_states)
+            next_q = next_q_values.max(dim=1, keepdim=True)[0]
+
+            target = rewards + self.gamma * next_q * (1 - dones)
+            delta = target - q_sa
+
+        # --------------------------
+        # Q update
+        # --------------------------
+        td_loss = 0.5 * delta.pow(2).mean()
+        correction = torch.mean(self.gamma * h_sa.detach() * next_q)
+
+        self.q_optimizer.zero_grad()
+        (td_loss + correction).backward()
+        self.q_optimizer.step()
+
+        # --------------------------
+        # H update
+        # --------------------------
+        h_loss = 0.5 * (delta.detach() - h_sa).pow(2).mean()
+
+        self.h_optimizer.zero_grad()
+        h_loss.backward()
+        self.h_optimizer.step()
+
+        # --------------------------
+        # epsilon decay
+        # --------------------------
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+    def update_target(self):
+        self.target_net.load_state_dict(self.net.state_dict())
+
 def run(seed):
     set_global_seed(seed)
 
