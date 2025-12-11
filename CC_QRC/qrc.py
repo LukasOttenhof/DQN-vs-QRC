@@ -43,7 +43,7 @@ class QRCAgent:
         epsilon_min=0.01,
         buffer_size=50000,
         batch_size=64,
-        beta=1,     # weight decay for h-net (small default)
+        beta=1,
         device=None,
         h_lr=0.01
     ):
@@ -58,10 +58,7 @@ class QRCAgent:
         self.beta = beta
         self.h_lr = h_lr
 
-        # Replay memory
         self.memory = deque(maxlen=buffer_size)
-
-        # Device
         self.device = device or (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
 
         # Networks
@@ -69,17 +66,15 @@ class QRCAgent:
         self.target_net = self.build_nn(output_dim=self.action_dim).to(self.device)
         self.h_net = self.build_nn(output_dim=self.action_dim).to(self.device)
 
-        # init target
         self.target_net.load_state_dict(self.q_net.state_dict())
 
         # Optimizers
-        self.q_optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
-        self.h_optimizer = optim.Adam(self.h_net.parameters(), lr=self.h_lr, weight_decay=self.beta)
+        self.q_optimizer = optim.AdamW(self.q_net.parameters(), lr=self.lr)
+        self.h_optimizer = optim.AdamW(self.h_net.parameters(), lr=self.h_lr, weight_decay=self.beta)
 
         self.steps = 0
 
     def build_nn(self, output_dim):
-        """Simple 2-layer MLP"""
         return nn.Sequential(
             nn.Linear(self.state_dim, 128),
             nn.ReLU(),
@@ -89,13 +84,12 @@ class QRCAgent:
         )
 
     def agent_policy(self, state):
-        """Epsilon-greedy"""
         if np.random.rand() < self.epsilon:
             return int(np.random.randint(self.action_dim))
 
-        state_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)  # (1, state_dim)
+        state_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            q_values = self.q_net(state_t)  # (1, action_dim)
+            q_values = self.q_net(state_t)
         return int(q_values.argmax(dim=1).item())
 
     def remember(self, s, a, r, s2, done):
@@ -105,72 +99,51 @@ class QRCAgent:
         if len(self.memory) < self.batch_size:
             return
 
-        # Sample mini-batch
         batch = random.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
 
+        # Convert to tensors
         states = torch.tensor(np.stack(states), dtype=torch.float32).to(self.device)
         next_states = torch.tensor(np.stack(next_states), dtype=torch.float32).to(self.device)
         actions = torch.tensor(actions, dtype=torch.long).unsqueeze(1).to(self.device)
         rewards = torch.tensor(rewards, dtype=torch.float32).unsqueeze(1).to(self.device)
         dones = torch.tensor(dones, dtype=torch.float32).unsqueeze(1).to(self.device)
 
-        # Q(s,a)
-        q_values = self.q_net(states)
-        q_sa = q_values.gather(1, actions)
+        q_sa = self.q_net(states).gather(1, actions)
 
-        # ---- target net forward pass (with grad for correction) ----
-        next_q_all = self.target_net(next_states)               # (B,A)
-        next_q = next_q_all.max(dim=1, keepdim=True)[0]         # (B,1)
-
-        # TD target (no grad)
-        target = rewards + self.gamma * next_q.detach() * (1.0 - dones)
+        with torch.no_grad():
+            next_q_values = self.target_net(next_states)
+            next_q_max, next_actions = next_q_values.max(dim=1, keepdim=True)
+            
+            target = rewards + self.gamma * next_q_max * (1.0 - dones)
+        
+        # TD Error (delta)
         delta = target - q_sa
-        delta_detached_for_h = delta.detach()
 
-        # h prediction
-        h_values = self.h_net(states)
-        h_sa = h_values.gather(1, actions)
-
-        # Losses
-        td_loss = 0.5 * (delta.pow(2)).mean()
-        correction_term = torch.mean(self.gamma * h_sa.detach() * next_q)
-        h_loss = 0.5 * ((delta_detached_for_h - h_sa).pow(2)).mean()
-
-        # ---- Update q_net ----
+        q_next_online = self.q_net(next_states).gather(1, next_actions)
+        h_sa = self.h_net(states).gather(1, actions)
+        loss_mse = 0.5 * (delta.pow(2)).mean()
+        loss_correction = (self.gamma * h_sa.detach() * q_next_online * (1.0 - dones)).mean()
+        
+        total_q_loss = loss_mse + loss_correction
         self.q_optimizer.zero_grad()
-        self.target_net.zero_grad()
-
-        td_loss.backward()
-        correction_term.backward()
-
-        # Transfer target_net gradients to q_net
-        for p_q, p_t in zip(self.q_net.parameters(), self.target_net.parameters()):
-            if p_t.grad is not None:
-                if p_q.grad is None:
-                    p_q.grad = p_t.grad.clone()
-                else:
-                    p_q.grad.add_(p_t.grad)
-
+        total_q_loss.backward()
         self.q_optimizer.step()
 
-        # Clean target_net grads after transferring
-        self.target_net.zero_grad(set_to_none=True)
+        h_loss = 0.5 * ((delta.detach() - h_sa).pow(2)).mean()
 
-        # ---- Update h_net ----
         self.h_optimizer.zero_grad()
         h_loss.backward()
         self.h_optimizer.step()
 
-        # ---- Epsilon decay ----
+        # Epsilon Decay
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay 
 
-    # Target network update (hard update)
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
 
-class QRCAgent_NoTNU:
+class QRCAgent_NT:
     def __init__(
         self,
         state_dim: int,
@@ -288,60 +261,6 @@ class QRCAgent_NoTNU:
         self.remember(state, action, reward, next_state, done)
         self.train()
 
-
-def run_no_target_net(seed):
-    set_global_seed(seed)
-
-    env = TruckBackerEnv_D()
-    env.seed(seed)
-    env.action_space.seed(seed)
-    state = env.reset()
-
-    agent = QRCAgent_NoTNU(
-        state_dim=env.observation_space.shape[0],
-        action_dim=env.action_space.n,
-        lr=0.002261,
-        epsilon=1.0,
-        epsilon_decay=0.99997,
-        epsilon_min=0.01,
-        batch_size=256,
-        buffer_size=50000,
-        gamma=0.95,
-        beta=0.951
-    )
-
-    episode_rewards = []
-    episodes = 1000
-    max_steps_per_episode = 500
-
-    for episode in range(episodes):
-        state = env.reset()
-        total_reward = 0
-        for t in range(max_steps_per_episode):
-            action = agent.policy(state)
-            next_state, reward, done, info = env.step(action)
-            agent.step(state, action, reward, next_state, done)
-            state = next_state
-            total_reward += reward
-            if done:
-                break
-
-        episode_rewards.append(total_reward)
-        print(f"Seed {seed} | Episode {episode} | Reward {total_reward:.2f} | Epsilon {agent.epsilon:.4f}")
-
-    # save individual seed result
-    os.makedirs("result_no_tnu", exist_ok=True)
-    np.savetxt(f"result_no_tnu/qrc_seed_{seed}.txt", np.array(episode_rewards))
-    print(f"[Seed = {seed}] saved to result_no_tnu/qrc_seed_{seed}.txt")
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-import random
-from collections import deque
-
-
 # --------------------------
 # Shared backbone + 2 heads
 # --------------------------
@@ -369,8 +288,7 @@ class QRCNet(nn.Module):
         h = self.h_head(z)
         return q, h
 
-
-class QRCAgent_OneNetwork:
+class QRCAgent_ON:
     def __init__(
         self,
         state_dim,
@@ -493,6 +411,152 @@ class QRCAgent_OneNetwork:
     def update_target(self):
         self.target_net.load_state_dict(self.net.state_dict())
 
+class QRCAgent_FB:
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        lr=1e-3,
+        gamma=0.99,
+        epsilon=0.5,
+        epsilon_decay=0.995,
+        epsilon_min=0.01,
+        buffer_size=50000,
+        batch_size=64,
+        beta=1,     # weight decay for h-net (small default)
+        device=None,
+        h_lr=0.01
+    ):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.lr = lr
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_min = epsilon_min
+        self.batch_size = batch_size
+        self.beta = beta
+        self.h_lr = h_lr
+
+        self.device = device if device is not None else torch.device("cpu")
+
+        # Replay buffer
+        self.memory = deque(maxlen=buffer_size)
+
+        # Networks
+        self.q_net = self.build_nn(self.action_dim).to(self.device)
+        self.h_net = self.build_nn(self.action_dim).to(self.device)
+        self.target_net = self.build_nn(self.action_dim).to(self.device)
+        self.update_target()  # initialize target
+
+        # Optimizers
+        self.q_optimizer = torch.optim.AdamW(self.q_net.parameters(), lr=self.lr)
+        self.h_optimizer = torch.optim.AdamW(self.h_net.parameters(), lr=self.h_lr)
+
+    # -----------------------------
+    # Build simple MLP
+    # -----------------------------
+    def build_nn(self, output_dim):
+        return nn.Sequential(
+            nn.Linear(self.state_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_dim)
+        )
+
+    # -----------------------------
+    # Epsilon-greedy policy
+    # -----------------------------
+    def agent_policy(self, state):
+        if np.random.rand() < self.epsilon:
+            return int(np.random.randint(self.action_dim))
+
+        state_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            q_values = self.q_net(state_t)
+        return int(q_values.argmax(dim=1).item())
+
+    # -----------------------------
+    # Store transition
+    # -----------------------------
+    def remember(self, s, a, r, s2, done):
+        self.memory.append((s, a, r, s2, done))
+
+    # -----------------------------
+    # Train on mini-batch
+    # -----------------------------
+    def train_with_mem(self):
+        if len(self.memory) < self.batch_size:
+            return
+
+        batch = random.sample(self.memory, self.batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = torch.tensor(np.stack(states), dtype=torch.float32).to(self.device)
+        next_states = torch.tensor(np.stack(next_states), dtype=torch.float32).to(self.device)
+        actions = torch.tensor(actions, dtype=torch.long).unsqueeze(1).to(self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).unsqueeze(1).to(self.device)
+        dones = torch.tensor(dones, dtype=torch.float32).unsqueeze(1).to(self.device)
+
+        batch_indices = torch.arange(self.batch_size).unsqueeze(1).to(self.device)
+
+        # --- Forward pass ---
+        q_values = self.q_net(states)
+        h_values = self.h_net(states)
+        q_next_target = self.target_net(next_states)
+
+        q_sa = q_values.gather(1, actions)  # Q(s,a)
+        h_sa = h_values.gather(1, actions)  # H(s,a)
+
+        # a' = argmax_a Q̂(s',a)
+        with torch.no_grad():
+            a_prime = q_next_target.argmax(dim=1, keepdim=True)
+            q_target_sp_ap = q_next_target.gather(1, a_prime)
+
+        # TD error δ = r + γ Q̂(s',a') - Q(s,a)
+        delta = rewards + self.gamma * q_target_sp_ap * (1 - dones) - q_sa
+
+        # ---------------------
+        # Update H network
+        # ---------------------
+        h_loss = 0.5 * ((delta.detach() - h_sa) ** 2 + self.beta * h_sa ** 2).mean()
+        self.h_optimizer.zero_grad()
+        h_loss.backward()
+        self.h_optimizer.step()
+
+        # Recompute h after update
+        h_values_updated = self.h_net(states)
+        h_sa_updated = h_values_updated.gather(1, actions)
+
+        with torch.no_grad():
+            h_sp_ap = h_values_updated.gather(1, a_prime)
+
+        # ---------------------
+        # Update Q network
+        # ---------------------
+        q_loss = (-delta.detach() * q_sa + self.gamma * h_sp_ap.detach() * q_target_sp_ap).mean()
+        self.q_optimizer.zero_grad()
+        q_loss.backward()
+        self.q_optimizer.step()
+
+        # ---------------------
+        # Hard target network update (default)
+        # ---------------------
+        self.update_target()
+
+        # ---------------------
+        # Epsilon decay
+        # ---------------------
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+    # -----------------------------
+    # Hard update target network
+    # -----------------------------
+    def update_target(self):
+        self.target_net.load_state_dict(self.q_net.state_dict())
+
 def run(seed):
     set_global_seed(seed)
 
@@ -548,5 +612,4 @@ def run(seed):
 if __name__ == "__main__":
     import sys
     seed = int(sys.argv[1])
-    # run_no_target_net(seed)
     run(seed)
