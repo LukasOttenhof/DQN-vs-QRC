@@ -1,0 +1,21 @@
+{
+  "config": {
+    "num_episodes": 1000,
+    "max_steps_per_episode": 500,
+    "seed": 229981,
+    "verbose": false,
+    "learning_rate": 0.0007653495982756211,
+    "epsilon_start": 0.8,
+    "epsilon_decay": 0.99999,
+    "epsilon_min": 0.1,
+    "batch_size": 128,
+    "buffer_size": 100000,
+    "gamma": 0.99,
+    "target_update_freq": 10,
+    "beta": 0.973453935121886,
+    "config_id": "cfg_batch_size=128_beta=0.973453935121886_buffer_size=100000_epsilon_decay=0.99999_epsilon_min=0.1_epsilon_start=0.8_gamma=0.99_learning_rate=0.0007653495982756211_target_update_freq=10",
+    "rep_index": 23
+  },
+  "mean_reward": -62.375,
+  "std_reward": 151.77704824840941
+}

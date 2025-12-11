@@ -115,79 +115,83 @@ class DQNAgent:
     def update_target(self): # update target network replacing it with the current q network
         self.target_net.load_state_dict(self.q_nn.state_dict())
 
-
-
-from tbu_discrete import TruckBackerEnv_D
-num_episodes = 1000
-max_steps_per_episode = 500
-learning_rate = 1e-3
-epsilon_start = 0.5
-epsilon_decay = 0.99997
-epsilon_min = 0.01
-batch_size = 64
-target_update_freq = 5
-
-
-seeds = [i for i in range(200)]
-
-
-
-all_rewards = []
-for seed in seeds:
-    print(f"========== RUN SEED = {seed} ==========")
+def run_dqn_experiment():
     
-    # Global RNGs
-    set_global_seed(seed)
-
-    # Environment
-    env = TruckBackerEnv_D(render_mode=None)
-    env.seed(seed)
-    env.action_space.seed(seed)
-    state = env.reset()
-
-    # Agent
-    agent = DQNAgent(
-        state_dim=env.observation_space.shape[0],
-        action_dim=env.action_space.n,
-        lr=learning_rate,
-        epsilon=epsilon_start,
-        epsilon_decay=epsilon_decay,
-        epsilon_min=epsilon_min,
-        batch_size=batch_size
-    )
-
-    episode_rewards = []
-
-    for episode in range(1, num_episodes + 1):
-        env.seed(seed + episode)
+    from tbu_discrete import TruckBackerEnv_D
+    num_episodes = 1000
+    max_steps_per_episode = 500
+    learning_rate = 1e-3
+    epsilon_start = 0.5
+    epsilon_decay = 0.99997
+    epsilon_min = 0.01
+    batch_size = 64
+    target_update_freq = 5
+    
+    
+    seeds = [i for i in range(200)]
+    
+    
+    
+    all_rewards = []
+    for seed in seeds:
+        print(f"========== RUN SEED = {seed} ==========")
+        
+        # Global RNGs
+        set_global_seed(seed)
+    
+        # Environment
+        env = TruckBackerEnv_D(render_mode=None)
+        env.seed(seed)
+        env.action_space.seed(seed)
         state = env.reset()
-        total_reward = 0
-
-        for t in range(max_steps_per_episode):
-            action = agent.agent_policy(state)
-            next_state, reward, done, info = env.step(action)
-            agent.remember(state, action, reward, next_state, done)
-            agent.train_with_mem()
-            state = next_state
-            total_reward += reward
-            if done:
-                break
-
-        if episode % target_update_freq == 0:
-            agent.update_target()
-
-        episode_rewards.append(total_reward)
-      #  print(f"Seed {seed} | Episode {episode} | Reward {total_reward:.2f}")
-
-    # Store rewards for this seed
-    all_rewards.append(episode_rewards)
     
-
-# Convert to NumPy array for easier aggregation
-#all_rewards = np.array(all_rewards)  # shape = (num_seeds, num_episodes)
-    torch.save(
-        {
-            "rewards": torch.tensor(all_rewards, dtype=torch.float32),
-        },
-        r"C:\Users\otten\Desktop\CMPUT655-Project\data\dqn_reward_seeds.pt"
+        # Agent
+        agent = DQNAgent(
+            state_dim=env.observation_space.shape[0],
+            action_dim=env.action_space.n,
+            lr=learning_rate,
+            epsilon=epsilon_start,
+            epsilon_decay=epsilon_decay,
+            epsilon_min=epsilon_min,
+            batch_size=batch_size
         )
+    
+        episode_rewards = []
+    
+        for episode in range(1, num_episodes + 1):
+            env.seed(seed + episode)
+            state = env.reset()
+            total_reward = 0
+    
+            for t in range(max_steps_per_episode):
+                action = agent.agent_policy(state)
+                next_state, reward, done, info = env.step(action)
+                agent.remember(state, action, reward, next_state, done)
+                agent.train_with_mem()
+                state = next_state
+                total_reward += reward
+                if done:
+                    break
+    
+            if episode % target_update_freq == 0:
+                agent.update_target()
+    
+            episode_rewards.append(total_reward)
+          #  print(f"Seed {seed} | Episode {episode} | Reward {total_reward:.2f}")
+    
+        # Store rewards for this seed
+        all_rewards.append(episode_rewards)
+        
+    
+    # Convert to NumPy array for easier aggregation
+    #all_rewards = np.array(all_rewards)  # shape = (num_seeds, num_episodes)
+        torch.save(
+            {
+                "rewards": torch.tensor(all_rewards, dtype=torch.float32),
+            },
+            r"data/dqn_reward_seeds.pt"
+            )
+        
+if __name__ == "__main__":
+    # run_dqn_experiment()
+    pass
