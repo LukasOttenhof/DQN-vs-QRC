@@ -55,7 +55,7 @@ class DQNAgent:
         self.q_nn = self.build_nn().to(self.device) # build q network
         self.target_net = self.build_nn().to(self.device) # build target network
         self.target_net.load_state_dict(self.q_nn.state_dict()) # make target net same as q net. initialization is random so need this
-        self.optimizer = optim.Adam(self.q_nn.parameters(), lr=lr) 
+        self.optimizer = optim.AdamW(self.q_nn.parameters(), lr=lr) 
         
     def build_nn(self): # to build the q network, 2 hidden layer with relu and 128 neurons in each
         return nn.Sequential(

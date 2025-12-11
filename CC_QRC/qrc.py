@@ -79,6 +79,7 @@ class QRCAgent:
         # QRC Specific Parameters (Secondary weights optimization)
         self.beta_1 = 0.9
         self.beta_2 = 0.999
+        self.eps = 1e-8
         
         # Auxiliary weights h, and Adam stats v and m
         self.h = torch.zeros(self.action_dim, self.hidden_dim, requires_grad=False).to(self.device)
